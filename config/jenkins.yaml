@@ -1,0 +1,17 @@
+# Configuración de los Jenkins a consultar. Aquí NO van secretos (ver .env.example).
+# Apunta por defecto al laboratorio local de Docker (lab/).
+search:
+  folder_depth: 5        # profundidad máxima de carpetas a recorrer
+  timeout_seconds: 10
+
+instances:
+  - id: dev              # [a-z0-9_]; define las variables JENKINS_DEV_USER / JENKINS_DEV_TOKEN
+    name: Jenkins DEV
+    url: http://localhost:8081
+  - id: pre
+    name: Jenkins PRE
+    url: http://localhost:8082
+  - id: pro
+    name: Jenkins PRO
+    url: http://localhost:8083
+    verify_ssl: true

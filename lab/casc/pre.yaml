@@ -1,0 +1,8 @@
+jobs:
+  - script: |
+      folder('backend')
+
+      pipelineJob('backend/app-backend') {
+        definition { cps { script("echo 'pre'"); sandbox() } }
+      }
+      freeStyleJob('batch-nightly')

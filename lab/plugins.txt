@@ -1,0 +1,7 @@
+cloudbees-folder
+branch-api
+workflow-aggregator
+workflow-multibranch
+git
+configuration-as-code
+job-dsl
