@@ -3,6 +3,7 @@
 import logging
 
 import streamlit as st
+import truststore
 
 from job_enabler.application.job_service import JobService
 from job_enabler.domain.errors import JobEnablerError
@@ -20,6 +21,9 @@ MIN_QUERY_LENGTH = 2
 FLASH = "flash"
 
 logging.basicConfig(level=logging.INFO)
+
+# Usa el almacén de certificados del sistema (en Windows incluye las CA corporativas).
+truststore.inject_into_ssl()
 
 
 @st.cache_resource
