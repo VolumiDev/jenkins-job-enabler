@@ -29,6 +29,7 @@ READY_TIMEOUT_SECONDS = 300
 
 
 def url_of(instance_id: str) -> str:
+    """URL local de la instancia del laboratorio."""
     return f"http://localhost:{PORTS[instance_id]}"
 
 
@@ -45,6 +46,7 @@ def upsert_env(path: Path, values: dict[str, str]) -> None:
 
 
 def ensure_lab_env() -> dict[str, str]:
+    """Garantiza una contraseña de admin por instancia en `lab/.env` y devuelve su contenido."""
     values = {k: v for k, v in dotenv_values(LAB_ENV).items() if v}
     missing = {
         f"{i.upper()}_ADMIN_PASSWORD": secrets.token_urlsafe(18)
@@ -58,6 +60,7 @@ def ensure_lab_env() -> dict[str, str]:
 
 
 def compose(*args: str) -> None:
+    """Ejecuta `docker compose` sobre el compose del laboratorio; falla si el comando falla."""
     subprocess.run(  # noqa: S603
         ["docker", "compose", "-f", str(LAB_DIR / "docker-compose.yml"), *args],  # noqa: S607
         check=True,
@@ -66,6 +69,7 @@ def compose(*args: str) -> None:
 
 
 def wait_ready(instance_id: str, password: str) -> None:
+    """Espera a que la API de Jenkins responda; aborta si supera `READY_TIMEOUT_SECONDS`."""
     deadline = time.monotonic() + READY_TIMEOUT_SECONDS
     while time.monotonic() < deadline:
         try:
@@ -81,6 +85,7 @@ def wait_ready(instance_id: str, password: str) -> None:
 
 
 def token_works(instance_id: str, token: str) -> bool:
+    """Comprueba que el API token sigue siendo válido en la instancia."""
     try:
         response = requests.get(
             f"{url_of(instance_id)}/api/json", auth=(ADMIN_USER, token), timeout=5
@@ -108,6 +113,7 @@ def create_token(instance_id: str, password: str) -> str:
 
 
 def ensure_tokens(lab_env: dict[str, str]) -> None:
+    """Crea los tokens que falten o ya no funcionen y los guarda en el `.env` de la app."""
     app_env = {k: v for k, v in dotenv_values(APP_ENV).items() if v}
     updates: dict[str, str] = {}
     for instance_id in PORTS:
@@ -124,6 +130,7 @@ def ensure_tokens(lab_env: dict[str, str]) -> None:
 
 
 def reset_state() -> None:
+    """Restaura el estado inicial (activo/inactivo) de los jobs de `INITIAL_STATE`."""
     app_env = dotenv_values(APP_ENV)
     for instance_id, jobs in INITIAL_STATE.items():
         client = jenkins.Jenkins(
@@ -139,6 +146,7 @@ def reset_state() -> None:
 
 
 def main() -> None:
+    """Punto de entrada de la CLI: `up`, `reset` o `down`."""
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawTextHelpFormatter
     )

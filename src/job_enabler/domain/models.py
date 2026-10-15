@@ -1,8 +1,12 @@
+"""Modelos de dominio: enums y dataclasses inmutables que intercambian las capas."""
+
 from dataclasses import dataclass
 from enum import StrEnum
 
 
 class JobStatus(StrEnum):
+    """Estado de un job en una ubicación; `NOT_FOUND` y `UNAVAILABLE` se usan al presentar."""
+
     ENABLED = "enabled"
     DISABLED = "disabled"
     NOT_FOUND = "not_found"
@@ -10,6 +14,8 @@ class JobStatus(StrEnum):
 
 
 class JobKind(StrEnum):
+    """Tipo de job de Jenkins que nos interesa distinguir."""
+
     FREESTYLE = "freestyle"
     PIPELINE = "pipeline"
     MULTIBRANCH = "multibranch"
@@ -17,6 +23,8 @@ class JobKind(StrEnum):
 
 
 class Outcome(StrEnum):
+    """Resultado de intentar cambiar el estado de un job."""
+
     CHANGED = "changed"
     UNCHANGED = "unchanged"
     FAILED = "failed"
@@ -34,6 +42,8 @@ def job_key(name: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class JenkinsInstance:
+    """Un Jenkins configurado: identificador corto, nombre visible y URL base."""
+
     id: str
     name: str
     url: str
@@ -50,6 +60,7 @@ class JobInfo:
 
     @property
     def name(self) -> str:
+        """Nombre final del job, sin la ruta de carpetas."""
         return job_name(self.full_name)
 
 
@@ -77,6 +88,8 @@ class SearchReport:
 
 @dataclass(frozen=True, slots=True)
 class PlannedChange:
+    """Cambio previsto para un job: estado actual y estado objetivo."""
+
     instance_id: str
     full_name: str
     current: JobStatus
@@ -84,6 +97,7 @@ class PlannedChange:
 
     @property
     def is_noop(self) -> bool:
+        """Indica si el job ya está en el estado objetivo (no habrá modificación)."""
         return self.current == self.target
 
 
@@ -97,6 +111,8 @@ class ExclusivePlan:
 
 @dataclass(frozen=True, slots=True)
 class OperationResult:
+    """Resultado de operar sobre un job; `message` recoge el motivo si falló."""
+
     instance_id: str
     full_name: str
     outcome: Outcome

@@ -1,3 +1,5 @@
+"""Adaptador del puerto `JenkinsGateway` sobre la librería `python-jenkins`."""
+
 from collections.abc import Callable
 from typing import Any, TypeVar
 
@@ -22,10 +24,12 @@ _KINDS = (
 
 
 def _is_folder(raw: dict[str, Any]) -> bool:
+    """Indica si el elemento es un contenedor que se recorre, no un job."""
     return any(str(raw.get("_class", "")).endswith(c) for c in _FOLDER_CLASSES)
 
 
 def _kind_of(raw: dict[str, Any]) -> JobKind:
+    """Deduce el tipo de job por el sufijo de su `_class`."""
     job_class = str(raw.get("_class", ""))
     return next((kind for suffix, kind in _KINDS if job_class.endswith(suffix)), JobKind.OTHER)
 
@@ -40,6 +44,7 @@ def _is_enabled(raw: dict[str, Any]) -> bool:
 
 
 def _to_job(raw: dict[str, Any], full_name: str) -> JobInfo:
+    """Convierte la respuesta JSON de Jenkins en un `JobInfo`."""
     return JobInfo(full_name, raw.get("url", ""), _is_enabled(raw), _kind_of(raw))
 
 
@@ -76,6 +81,7 @@ class PythonJenkinsGateway:
         return found
 
     def get_job(self, full_name: str) -> JobInfo | None:
+        """Devuelve el job, o None si no existe o la ruta apunta a una carpeta."""
         try:
             raw = self._call(self._client.get_job_info, full_name)
         except jenkins.NotFoundException:
@@ -85,10 +91,12 @@ class PythonJenkinsGateway:
         return _to_job(raw, full_name)
 
     def set_enabled(self, full_name: str, enabled: bool) -> None:
+        """Activa o desactiva el job mediante la API de Jenkins."""
         action = self._client.enable_job if enabled else self._client.disable_job
         self._call(action, full_name)
 
     def _children(self, folder: str) -> list[dict[str, Any]]:
+        """Hijos directos de una carpeta (la raíz si `folder` está vacío)."""
         info = self._call(
             self._client.get_info, _item_path(folder) if folder else "", _CHILDREN_QUERY
         )
@@ -96,6 +104,11 @@ class PythonJenkinsGateway:
         return children
 
     def _call(self, func: Callable[..., T], *args: Any) -> T:
+        """Ejecuta una llamada al cliente traduciendo sus errores.
+
+        `NotFoundException` se propaga tal cual; el resto de fallos de Jenkins o de red
+        se convierten en `InstanceUnavailableError`.
+        """
         try:
             return func(*args)
         except jenkins.NotFoundException:

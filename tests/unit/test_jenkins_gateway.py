@@ -16,6 +16,7 @@ FREESTYLE = "hudson.model.FreeStyleProject"
 
 
 def item(name: str, cls: str, full: str | None = None, **extra: Any) -> dict[str, Any]:
+    """Construye el JSON de un elemento de Jenkins; `extra` añade campos como `disabled`."""
     return {"name": name, "fullName": full or name, "_class": cls, "url": f"u/{name}", **extra}
 
 
@@ -66,6 +67,7 @@ def client() -> FakeClient:
 
 
 def gateway(client: FakeClient, depth: int = 5) -> PythonJenkinsGateway:
+    """Gateway bajo prueba sobre el cliente falso."""
     return PythonJenkinsGateway("dev", client, depth)
 
 

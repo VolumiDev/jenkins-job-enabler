@@ -1,3 +1,5 @@
+"""Composición: construye los gateways y el servicio a partir de la configuración."""
+
 import jenkins
 
 from job_enabler.application.job_service import JobService
@@ -14,6 +16,7 @@ from job_enabler.infrastructure.settings import (
 def build_gateways(
     config: AppConfig, credentials: dict[str, Credentials]
 ) -> dict[str, JenkinsGateway]:
+    """Crea un gateway por instancia configurada, indexado por su id."""
     gateways: dict[str, JenkinsGateway] = {}
     for instance in config.instances:
         secret = credentials[instance.id]

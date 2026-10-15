@@ -24,31 +24,37 @@ logging.basicConfig(level=logging.INFO)
 
 @st.cache_resource
 def _bootstrap() -> tuple[JobService, AppConfig]:
+    """Construye servicio y configuración una sola vez por proceso de Streamlit."""
     return build_service()
 
 
 @st.cache_data(ttl=60, show_spinner="Consultando Jenkins…")
 def _search(_service: JobService, query: str, instance_ids: tuple[str, ...]) -> SearchReport:
+    """Búsqueda cacheada 60 s; `_service` lleva guion bajo para que Streamlit no lo hashee."""
     return _service.search(query, list(instance_ids))
 
 
 def _names() -> dict[str, str]:
+    """Mapa `id de instancia -> nombre visible`."""
     _, config = _bootstrap()
     return {i.id: i.name for i in config.instances}
 
 
 def _flash_results(results: list[OperationResult]) -> None:
+    """Guarda los resultados para mostrarlos tras el rerun, e invalida la caché de búsqueda."""
     st.session_state[FLASH] = ("results", results)
     _search.clear()
     st.rerun()
 
 
 def _flash_error(message: str) -> None:
+    """Guarda un error para mostrarlo tras el rerun."""
     st.session_state[FLASH] = ("error", message)
     st.rerun()
 
 
 def _show_flash() -> None:
+    """Muestra (y consume) el mensaje guardado por `_flash_results` o `_flash_error`."""
     kind, payload = st.session_state.pop(FLASH, (None, None))
     if kind == "error":
         st.error(payload)
@@ -59,6 +65,7 @@ def _show_flash() -> None:
 
 @st.dialog("Dejar activo solo aquí", width="large")
 def _exclusive_dialog(instance_id: str, full_name: str) -> None:
+    """Diálogo de confirmación: muestra el plan y, si se confirma, activa en exclusiva."""
     service, _ = _bootstrap()
     names = _names()
     try:
@@ -84,6 +91,7 @@ def _exclusive_dialog(instance_id: str, full_name: str) -> None:
 
 
 def _toggle(service: JobService, loc: JobLocation) -> None:
+    """Invierte el estado del job en esa única ubicación."""
     enable = loc.status is not JobStatus.ENABLED
     try:
         _flash_results([service.set_state(loc.instance_id, loc.full_name, enabled=enable)])
@@ -92,6 +100,7 @@ def _toggle(service: JobService, loc: JobLocation) -> None:
 
 
 def _render_detail(service: JobService, locations: list[JobLocation]) -> None:
+    """Pinta una fila por ubicación con sus acciones (abrir, activar/desactivar, exclusivo)."""
     names = _names()
     for loc in sorted(locations, key=lambda x: (x.instance_id, x.full_name)):
         key = f"{loc.instance_id}:{loc.full_name}"
@@ -110,6 +119,7 @@ def _render_detail(service: JobService, locations: list[JobLocation]) -> None:
 
 
 def main() -> None:
+    """Dibuja la página: selector de instancias, búsqueda, resumen y detalle."""
     st.set_page_config(page_title="Job Enabler", page_icon="🛠️", layout="wide")
     st.title("Job Enabler")
 

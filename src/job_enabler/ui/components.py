@@ -34,10 +34,12 @@ OUTCOME_LABEL = {
 
 
 def repo_label(locations: Sequence[JobLocation]) -> str:
+    """Nombre del repositorio al que pertenecen las ubicaciones (comparten nombre final)."""
     return job_name(locations[0].full_name)
 
 
 def _cell(locations: Sequence[JobLocation]) -> str:
+    """Iconos de estado de una instancia; añade el recuento si hay varios jobs."""
     if not locations:
         return STATUS_ICON[JobStatus.NOT_FOUND]
     icons = "".join(STATUS_ICON[loc.status] for loc in locations)
@@ -59,6 +61,7 @@ def build_matrix(report: SearchReport, instance_names: Mapping[str, str]) -> pd.
 def results_frame(
     results: Sequence[OperationResult], instance_names: Mapping[str, str]
 ) -> pd.DataFrame:
+    """Tabla con el resultado de cada operación realizada."""
     return pd.DataFrame(
         [
             {
@@ -74,6 +77,7 @@ def results_frame(
 
 
 def plan_frame(changes: Sequence[PlannedChange], instance_names: Mapping[str, str]) -> pd.DataFrame:
+    """Tabla con los cambios previstos (estado actual, objetivo y si cambia)."""
     return pd.DataFrame(
         [
             {

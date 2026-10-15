@@ -1,3 +1,5 @@
+"""Dobles de prueba en memoria para el puerto `JenkinsGateway`."""
+
 from typing import ClassVar
 
 from job_enabler.domain.errors import InstanceUnavailableError
@@ -5,6 +7,8 @@ from job_enabler.domain.models import JobInfo
 
 
 class FakeGateway:
+    """Gateway en memoria; con `down=True` toda operación lanza `InstanceUnavailableError`."""
+
     # Diario compartido entre gateways: (instance_id, full_name, enabled) en orden de escritura.
     journal: ClassVar[list[tuple[str, str, bool]]] = []
 

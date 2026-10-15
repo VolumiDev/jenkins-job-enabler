@@ -1,3 +1,5 @@
+"""Servicio de aplicación: búsqueda y cambio de estado de jobs en varios Jenkins."""
+
 import getpass
 import logging
 from collections.abc import Mapping
@@ -26,10 +28,16 @@ logger = logging.getLogger(__name__)
 
 
 def _status(enabled: bool) -> JobStatus:
+    """Traduce el booleano de Jenkins al estado de dominio."""
     return JobStatus.ENABLED if enabled else JobStatus.DISABLED
 
 
 class JobService:
+    """Orquesta varios `JenkinsGateway` (uno por instancia, indexados por id).
+
+    Los cambios de estado se registran en el log con el usuario del sistema operativo.
+    """
+
     def __init__(self, gateways: Mapping[str, JenkinsGateway], max_workers: int = 8) -> None:
         self._gateways = gateways
         self._max_workers = max_workers
@@ -111,6 +119,11 @@ class JobService:
         return results
 
     def _list_all(self, instance_ids: list[str]) -> tuple[dict[str, list[JobInfo]], dict[str, str]]:
+        """Lista los jobs de cada instancia en paralelo.
+
+        Devuelve `(listados, fallos)`: una instancia caída aparece en `fallos` con su motivo
+        en lugar de abortar la operación.
+        """
         with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
             futures = {i: pool.submit(self._gateways[i].list_jobs) for i in instance_ids}
         listings: dict[str, list[JobInfo]] = {}
@@ -126,6 +139,10 @@ class JobService:
     def _apply(
         self, instance_id: str, full_name: str, current: bool, enabled: bool
     ) -> OperationResult:
+        """Lleva un job de `current` a `enabled`; es idempotente y no lanza.
+
+        Si ya está en el estado pedido devuelve `UNCHANGED`; si el gateway falla, `FAILED`.
+        """
         target = _status(enabled)
         if current == enabled:
             return OperationResult(instance_id, full_name, Outcome.UNCHANGED, target)
@@ -147,12 +164,14 @@ class JobService:
         return OperationResult(instance_id, full_name, Outcome.CHANGED, target)
 
     def _gateway(self, instance_id: str) -> JenkinsGateway:
+        """Devuelve el gateway de la instancia o lanza `UnknownInstanceError`."""
         try:
             return self._gateways[instance_id]
         except KeyError:
             raise UnknownInstanceError(instance_id) from None
 
     def _resolve_ids(self, instance_ids: list[str] | None) -> list[str]:
+        """`None` significa todas las instancias; valida que las indicadas existan."""
         if instance_ids is None:
             return list(self._gateways)
         for instance_id in instance_ids:
