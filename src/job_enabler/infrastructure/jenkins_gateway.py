@@ -1,13 +1,15 @@
 """Adaptador del puerto `JenkinsGateway` sobre la librería `python-jenkins`."""
 
+import re
 from collections.abc import Callable
 from typing import Any, TypeVar
+from xml.etree import ElementTree
 
 import jenkins
 import requests
 
 from job_enabler.domain.errors import InstanceUnavailableError
-from job_enabler.domain.models import JobInfo, JobKind
+from job_enabler.domain.models import JobInfo, JobKind, job_name
 
 T = TypeVar("T")
 
@@ -34,18 +36,27 @@ def _kind_of(raw: dict[str, Any]) -> JobKind:
     return next((kind for suffix, kind in _KINDS if job_class.endswith(suffix)), JobKind.OTHER)
 
 
-def _is_enabled(raw: dict[str, Any]) -> bool:
-    """`disabled` si Jenkins lo expone; si no, `buildable`; en último caso el color."""
+def _is_enabled(raw: dict[str, Any]) -> bool | None:
+    """`disabled` si Jenkins lo expone; si no, `buildable`; en último caso el color.
+
+    Devuelve None si el JSON no basta para saberlo: un Multibranch es una carpeta y, según
+    la versión de branch-api, no expone `disabled` ni `buildable` ni un color fiable.
+    """
     if "disabled" in raw:
         return not raw["disabled"]
+    if _kind_of(raw) is JobKind.MULTIBRANCH:
+        return None
     if "buildable" in raw:
         return bool(raw["buildable"])
     return not str(raw.get("color", "")).startswith("disabled")
 
 
-def _to_job(raw: dict[str, Any], full_name: str) -> JobInfo:
-    """Convierte la respuesta JSON de Jenkins en un `JobInfo`."""
-    return JobInfo(full_name, raw.get("url", ""), _is_enabled(raw), _kind_of(raw))
+def _disabled_from_config(xml: str) -> bool:
+    """Lee `<disabled>` del elemento raíz de un `config.xml`; si falta, está habilitado."""
+    # Jenkins declara XML 1.1, que expat no admite.
+    body = re.sub(r"^\s*<\?xml[^>]*\?>", "", xml)
+    root = ElementTree.fromstring(body)  # noqa: S314 - XML de nuestro propio Jenkins
+    return (root.findtext("disabled") or "").strip().lower() == "true"
 
 
 def _item_path(full_name: str) -> str:
@@ -61,12 +72,16 @@ class PythonJenkinsGateway:
         self._client = client
         self._folder_depth = folder_depth
 
-    def list_jobs(self) -> list[JobInfo]:
+    def list_jobs(self, query: str = "") -> list[JobInfo]:
         """Recorre las carpetas por niveles.
 
         No se usa `get_all_jobs`: entraría en los Multibranch y devolvería cada rama
         como si fuera un job. Aquí un Multibranch cuenta como un único job.
+
+        Si `query` no está vacío solo se devuelven los jobs cuyo nombre final lo contiene;
+        así el `config.xml` de un Multibranch solo se pide para los candidatos.
         """
+        needle = query.casefold()
         found: list[JobInfo] = []
         pending: list[tuple[str, int]] = [("", 1)]  # (ruta de carpeta, nivel)
         while pending:
@@ -76,8 +91,8 @@ class PythonJenkinsGateway:
                 if _is_folder(raw):
                     if level < self._folder_depth:
                         pending.append((full_name, level + 1))
-                else:
-                    found.append(_to_job(raw, full_name))
+                elif needle in job_name(full_name).casefold():
+                    found.append(self._to_job(raw, full_name))
         return found
 
     def get_job(self, full_name: str) -> JobInfo | None:
@@ -88,7 +103,14 @@ class PythonJenkinsGateway:
             return None
         if _is_folder(raw):
             return None
-        return _to_job(raw, full_name)
+        return self._to_job(raw, full_name)
+
+    def _to_job(self, raw: dict[str, Any], full_name: str) -> JobInfo:
+        """Convierte la respuesta JSON en un `JobInfo`; consulta `config.xml` si hace falta."""
+        enabled = _is_enabled(raw)
+        if enabled is None:
+            enabled = not _disabled_from_config(self._call(self._client.get_job_config, full_name))
+        return JobInfo(full_name, raw.get("url", ""), enabled, _kind_of(raw))
 
     def set_enabled(self, full_name: str, enabled: bool) -> None:
         """Activa o desactiva el job mediante la API de Jenkins."""

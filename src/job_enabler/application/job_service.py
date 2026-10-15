@@ -21,6 +21,7 @@ from job_enabler.domain.models import (
     PlannedChange,
     SearchReport,
     job_key,
+    job_name,
 )
 from job_enabler.domain.ports import JenkinsGateway
 
@@ -50,7 +51,7 @@ class JobService:
         """
         ids = self._resolve_ids(instance_ids)
         needle = query.casefold()
-        listings, failures = self._list_all(ids)
+        listings, failures = self._list_all(ids, query)
 
         jobs: dict[str, list[JobLocation]] = {}
         for instance_id, found in listings.items():
@@ -82,7 +83,7 @@ class JobService:
         changes = [
             PlannedChange(instance_id, full_name, _status(target.enabled), JobStatus.ENABLED)
         ]
-        listings, failures = self._list_all(list(self._gateways))
+        listings, failures = self._list_all(list(self._gateways), job_name(full_name))
         key = job_key(full_name)
         for other_id, found in listings.items():
             for job in found:
@@ -118,14 +119,16 @@ class JobService:
         )
         return results
 
-    def _list_all(self, instance_ids: list[str]) -> tuple[dict[str, list[JobInfo]], dict[str, str]]:
-        """Lista los jobs de cada instancia en paralelo.
+    def _list_all(
+        self, instance_ids: list[str], query: str = ""
+    ) -> tuple[dict[str, list[JobInfo]], dict[str, str]]:
+        """Lista los jobs de cada instancia en paralelo, filtrados por `query`.
 
         Devuelve `(listados, fallos)`: una instancia caída aparece en `fallos` con su motivo
         en lugar de abortar la operación.
         """
         with ThreadPoolExecutor(max_workers=self._max_workers) as pool:
-            futures = {i: pool.submit(self._gateways[i].list_jobs) for i in instance_ids}
+            futures = {i: pool.submit(self._gateways[i].list_jobs, query) for i in instance_ids}
         listings: dict[str, list[JobInfo]] = {}
         failures: dict[str, str] = {}
         for instance_id, future in futures.items():

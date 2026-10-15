@@ -3,7 +3,7 @@
 from typing import ClassVar
 
 from job_enabler.domain.errors import InstanceUnavailableError
-from job_enabler.domain.models import JobInfo
+from job_enabler.domain.models import JobInfo, job_name
 
 
 class FakeGateway:
@@ -22,9 +22,13 @@ class FakeGateway:
         if self.down:
             raise InstanceUnavailableError(self.instance_id, "caído")
 
-    def list_jobs(self) -> list[JobInfo]:
+    def list_jobs(self, query: str = "") -> list[JobInfo]:
         self._check()
-        return [JobInfo(n, f"http://{self.instance_id}/job/{n}", e) for n, e in self.jobs.items()]
+        return [
+            JobInfo(n, f"http://{self.instance_id}/job/{n}", e)
+            for n, e in self.jobs.items()
+            if query.casefold() in job_name(n).casefold()
+        ]
 
     def get_job(self, full_name: str) -> JobInfo | None:
         self._check()

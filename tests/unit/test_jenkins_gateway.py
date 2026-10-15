@@ -20,6 +20,12 @@ def item(name: str, cls: str, full: str | None = None, **extra: Any) -> dict[str
     return {"name": name, "fullName": full or name, "_class": cls, "url": f"u/{name}", **extra}
 
 
+def config_xml(*, disabled: bool | None) -> str:
+    """`config.xml` de un Multibranch; Jenkins lo declara como XML 1.1."""
+    flag = "" if disabled is None else f"<disabled>{str(disabled).lower()}</disabled>"
+    return f"<?xml version='1.1' encoding='UTF-8'?><org.x.Project>{flag}</org.x.Project>"
+
+
 class FakeClient:
     """Árbol: raíz → [team-a/ (Folder) → [api (Pipeline), web (Multibranch)], batch (Freestyle)]."""
 
@@ -28,16 +34,25 @@ class FakeClient:
             "": [item("team-a", FOLDER), item("batch", FREESTYLE, buildable=False)],
             "job/team-a": [
                 item("api", PIPELINE, "team-a/api", buildable=True),
-                item("web", MULTIBRANCH, "team-a/web", disabled=True),
+                # Como el Jenkins corporativo: el Multibranch no expone `disabled` en el JSON.
+                item("web", MULTIBRANCH, "team-a/web"),
                 item("gitlab", ORG_FOLDER, "team-a/gitlab"),
             ],
             "job/team-a/job/gitlab": [
                 item("svc", MULTIBRANCH, "team-a/gitlab/svc", disabled=False)
             ],
         }
+        self.configs: dict[str, str] = {"team-a/web": config_xml(disabled=True)}
         self.queries: list[str] = []
+        self.config_calls: list[str] = []
         self.calls: list[tuple[str, str]] = []
         self.error: Exception | None = None
+
+    def get_job_config(self, name: str) -> str:
+        self.config_calls.append(name)
+        if self.error:
+            raise self.error
+        return self.configs[name]
 
     def get_info(self, path: str, query: str) -> dict[str, Any]:
         self.queries.append(path)
@@ -112,6 +127,47 @@ def test_get_job_returns_state(client: FakeClient) -> None:
     job = gateway(client).get_job("team-a/web")
 
     assert job is not None and job.kind is JobKind.MULTIBRANCH and not job.enabled
+
+
+def test_multibranch_without_disabled_in_json_reads_config_xml(client: FakeClient) -> None:
+    jobs = {j.full_name: j for j in gateway(client).list_jobs()}
+
+    assert not jobs["team-a/web"].enabled
+    # svc ya trae `disabled` y el resto no son Multibranch: solo web necesita config.xml
+    assert client.config_calls == ["team-a/web"]
+
+
+def test_multibranch_config_without_disabled_tag_is_enabled(client: FakeClient) -> None:
+    client.configs["team-a/web"] = config_xml(disabled=None)
+
+    job = gateway(client).get_job("team-a/web")
+
+    assert job is not None and job.enabled
+
+
+def test_get_job_multibranch_uses_config_xml(client: FakeClient) -> None:
+    client.configs["team-a/web"] = config_xml(disabled=False)
+
+    job = gateway(client).get_job("team-a/web")
+
+    assert job is not None and job.enabled and client.config_calls == ["team-a/web"]
+
+
+def test_query_avoids_fetching_config_of_unrelated_jobs(client: FakeClient) -> None:
+    jobs = gateway(client).list_jobs("API")
+
+    assert [j.full_name for j in jobs] == ["team-a/api"]
+    assert client.config_calls == []
+
+
+def test_config_error_becomes_instance_unavailable(client: FakeClient) -> None:
+    def failing(name: str) -> str:
+        raise jenkins.JenkinsException("403")
+
+    client.get_job_config = failing  # type: ignore[method-assign]
+
+    with pytest.raises(InstanceUnavailableError):
+        gateway(client).get_job("team-a/web")
 
 
 def test_set_enabled_calls_enable_or_disable(client: FakeClient) -> None:
