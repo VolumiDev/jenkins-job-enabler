@@ -83,8 +83,8 @@ def plan_frame(changes: Sequence[PlannedChange], instance_names: Mapping[str, st
             {
                 "Jenkins": instance_names.get(c.instance_id, c.instance_id),
                 "Job": c.full_name,
-                "Ahora": STATUS_LABEL[c.current],
-                "Después": STATUS_LABEL[c.target],
+                "Ahora": STATUS_ICON[c.current],
+                "Después": STATUS_ICON[c.target],
                 "Cambia": "No" if c.is_noop else "Sí",
             }
             for c in changes

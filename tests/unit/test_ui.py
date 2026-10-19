@@ -6,9 +6,9 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from job_enabler.application.job_service import JobService
-from job_enabler.domain.models import JobLocation, JobStatus, SearchReport
+from job_enabler.domain.models import JobLocation, JobStatus, PlannedChange, SearchReport
 from job_enabler.infrastructure.settings import AppConfig, InstanceConfig
-from job_enabler.ui.components import build_matrix
+from job_enabler.ui.components import build_matrix, plan_frame
 from tests.unit.fakes import FakeGateway
 
 NAMES = {"dev": "Jenkins DEV", "pre": "Jenkins PRE", "pro": "Jenkins PRO"}
@@ -35,6 +35,18 @@ def test_matrix_has_one_row_per_repo_and_marks_missing_and_duplicates() -> None:
     assert row["Jenkins DEV"] == "🟢🔴 (2)"
     assert row["Jenkins PRE"] == "—"
     assert row["Jenkins PRO"] == "🔴"
+
+
+def test_plan_frame_shows_traffic_lights_for_now_and_after() -> None:
+    changes = [
+        PlannedChange("dev", "team-a/app-backend", JobStatus.DISABLED, JobStatus.ENABLED),
+        PlannedChange("pro", "prod/app-backend", JobStatus.ENABLED, JobStatus.DISABLED),
+    ]
+
+    frame = plan_frame(changes, NAMES)
+
+    assert list(frame["Ahora"]) == ["🔴", "🟢"]
+    assert list(frame["Después"]) == ["🟢", "🔴"]
 
 
 @pytest.fixture
