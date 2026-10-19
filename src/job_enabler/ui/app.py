@@ -19,6 +19,7 @@ from job_enabler.ui.components import (
 
 MIN_QUERY_LENGTH = 2
 FLASH = "flash"
+QUERY = "query"
 
 logging.basicConfig(level=logging.INFO)
 
@@ -55,6 +56,11 @@ def _flash_error(message: str) -> None:
     """Guarda un error para mostrarlo tras el rerun."""
     st.session_state[FLASH] = ("error", message)
     st.rerun()
+
+
+def _use_pattern(pattern: str) -> None:
+    """Carga un patrón frecuente en la barra de búsqueda (callback de botón)."""
+    st.session_state[QUERY] = pattern
 
 
 def _show_flash() -> None:
@@ -144,10 +150,22 @@ def main() -> None:
         )
         if st.button("Recargar"):
             _search.clear()
+        if config.frequent_apps:
+            st.subheader("Aplicaciones frecuentes")
+            for pattern in config.frequent_apps:
+                st.button(
+                    pattern,
+                    key=f"freq:{pattern}",
+                    on_click=_use_pattern,
+                    args=(pattern,),
+                    width="stretch",
+                )
 
     _show_flash()
 
-    query = st.text_input("Buscar repositorio (nombre del job)", placeholder="p. ej. app-backend")
+    query = st.text_input(
+        "Buscar repositorio (nombre del job)", placeholder="p. ej. app-backend", key=QUERY
+    )
     if len(query.strip()) < MIN_QUERY_LENGTH:
         st.info(f"Escribe al menos {MIN_QUERY_LENGTH} caracteres para buscar.")
         return

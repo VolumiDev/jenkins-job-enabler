@@ -60,6 +60,41 @@ def app(monkeypatch: pytest.MonkeyPatch) -> Iterator[AppTest]:
     st.cache_data.clear()
 
 
+def test_app_without_frequent_apps_hides_the_section(app: AppTest) -> None:
+    app.run()
+
+    assert not app.exception
+    assert "Aplicaciones frecuentes" not in [s.value for s in app.sidebar.subheader]
+
+
+def test_frequent_app_click_loads_pattern_and_searches(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = AppConfig(
+        instances=[
+            InstanceConfig(id="dev", name="Jenkins DEV", url="http://dev"),
+            InstanceConfig(id="pro", name="Jenkins PRO", url="http://pro"),
+        ],
+        frequent_apps=["app-backend"],
+    )
+    gateways = {
+        "dev": FakeGateway("dev", {"team-a/app-backend": True}),
+        "pro": FakeGateway("pro", {"prod/app-backend": False}),
+    }
+    monkeypatch.setattr(
+        "job_enabler.infrastructure.gateway_factory.build_service",
+        lambda: (JobService(gateways), config),
+    )
+    app.run()
+    assert "Aplicaciones frecuentes" in [s.value for s in app.sidebar.subheader]
+
+    next(b for b in app.sidebar.button if b.label == "app-backend").click().run()
+
+    assert not app.exception
+    assert app.text_input[0].value == "app-backend"
+    assert len(app.dataframe) == 1
+
+
 def test_app_asks_for_a_query_first(app: AppTest) -> None:
     app.run()
 

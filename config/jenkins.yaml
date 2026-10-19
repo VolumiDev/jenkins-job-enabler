@@ -1,11 +1,18 @@
 # Configuración de los Jenkins a consultar. Aquí NO van secretos (ver .env.example).
 # Apunta por defecto al laboratorio local de Docker (lab/).
 search:
-  folder_depth: 5        # profundidad máxima de carpetas a recorrer
+  folder_depth: 5 # profundidad máxima de carpetas a recorrer
   timeout_seconds: 10
 
+# Patrones que aparecen en "Aplicaciones frecuentes" (panel lateral). Opcional.
+frequent_apps:
+  - app-backend
+  - app-frontend
+  - batch-nightly
+  - app
+
 instances:
-  - id: dev              # [a-z0-9_]; define las variables JENKINS_DEV_USER / JENKINS_DEV_TOKEN
+  - id: dev # [a-z0-9_]; define las variables JENKINS_DEV_USER / JENKINS_DEV_TOKEN
     name: Jenkins DEV
     url: http://localhost:8081
   - id: pre

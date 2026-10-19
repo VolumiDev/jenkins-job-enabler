@@ -26,6 +26,20 @@ def test_load_config_applies_defaults(tmp_path: Path) -> None:
     assert config.instances[0].verify_ssl is True
 
 
+def test_frequent_apps_default_to_empty(tmp_path: Path) -> None:
+    config = load_config(_config(tmp_path), environ={})
+
+    assert config.frequent_apps == []
+
+
+def test_frequent_apps_are_cleaned_keeping_order(tmp_path: Path) -> None:
+    text = YAML + "frequent_apps: [' app-a ', '', app-b, app-a]\n"
+
+    config = load_config(_config(tmp_path, text), environ={})
+
+    assert config.frequent_apps == ["app-a", "app-b"]
+
+
 def test_config_path_can_come_from_environment(tmp_path: Path) -> None:
     path = _config(tmp_path)
 

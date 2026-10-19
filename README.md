@@ -9,6 +9,7 @@ Herramienta para la busqueda, activación y desactivación de jobs que se pueden
 
 ## Configuración
 - **Jenkins a consultar**: `config/jenkins.yaml` (versionado, sin secretos). La ruta se puede cambiar con `JOB_ENABLER_CONFIG`.
+- **Aplicaciones frecuentes** (opcional): clave `frequent_apps` del mismo YAML, con una lista de patrones. Aparecen como botones en el panel lateral y, al pulsarlos, se cargan en la barra de búsqueda. Si se omite, la sección no se muestra.
 - **Secretos**: `.env` (no versionado). Una pareja `JENKINS_<ID>_USER` / `JENKINS_<ID>_TOKEN` por cada `id` del YAML. Copia `.env.example` como punto de partida.
 
 ## Puesta en marcha

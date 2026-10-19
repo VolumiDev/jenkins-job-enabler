@@ -36,6 +36,13 @@ class AppConfig(BaseModel):
 
     search: SearchConfig = SearchConfig()
     instances: list[InstanceConfig] = Field(min_length=1)
+    frequent_apps: list[str] = Field(default_factory=list)
+
+    @field_validator("frequent_apps")
+    @classmethod
+    def _clean_frequent_apps(cls, patterns: list[str]) -> list[str]:
+        """Recorta espacios, descarta vacíos y quita repetidos manteniendo el orden."""
+        return list(dict.fromkeys(p.strip() for p in patterns if p.strip()))
 
     @field_validator("instances")
     @classmethod
