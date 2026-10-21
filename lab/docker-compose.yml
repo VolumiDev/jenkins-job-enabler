@@ -1,0 +1,37 @@
+# Laboratorio: 3 Jenkins independientes (DEV/PRE/PRO), cada uno con su propia contraseña.
+# Las contraseñas están en lab/.env (no versionado); `python -m lab.bootstrap up` lo genera.
+name: job-enabler-lab
+
+x-jenkins: &jenkins
+  build: .
+  restart: unless-stopped
+
+services:
+  jenkins-dev:
+    <<: *jenkins
+    ports: ["127.0.0.1:8081:8080"]
+    environment:
+      CASC_JENKINS_CONFIG: /casc/common.yaml,/casc/dev.yaml
+      JENKINS_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:?ejecuta python -m lab.bootstrap up}
+    volumes: ["dev_home:/var/jenkins_home"]
+
+  jenkins-pre:
+    <<: *jenkins
+    ports: ["127.0.0.1:8082:8080"]
+    environment:
+      CASC_JENKINS_CONFIG: /casc/common.yaml,/casc/pre.yaml
+      JENKINS_ADMIN_PASSWORD: ${PRE_ADMIN_PASSWORD:?ejecuta python -m lab.bootstrap up}
+    volumes: ["pre_home:/var/jenkins_home"]
+
+  jenkins-pro:
+    <<: *jenkins
+    ports: ["127.0.0.1:8083:8080"]
+    environment:
+      CASC_JENKINS_CONFIG: /casc/common.yaml,/casc/pro.yaml
+      JENKINS_ADMIN_PASSWORD: ${PRO_ADMIN_PASSWORD:?ejecuta python -m lab.bootstrap up}
+    volumes: ["pro_home:/var/jenkins_home"]
+
+volumes:
+  dev_home:
+  pre_home:
+  pro_home:

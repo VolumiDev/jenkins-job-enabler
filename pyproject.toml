@@ -1,0 +1,57 @@
+[project]
+name = "job-enabler"
+version = "0.1.0"
+description = "Consulta y activa/desactiva jobs en varios Jenkins (CLI + Streamlit)"
+authors = [
+    { name = "VolumiDev", email = "diego.martga@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pandas>=3.0.6",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.15.0",
+    "python-jenkins>=1.8.3",
+    "pyyaml>=6.0.3",
+    "streamlit>=1.65.0",
+    "truststore>=0.10.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.4.0",
+    "pandas-stubs>=3.0.5.260914",
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.0",
+    "types-pyyaml>=6.0.12.20260906",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "N", "RUF", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["jenkins.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m 'not integration'"
+markers = ["integration: requiere el laboratorio de Jenkins en Docker levantado"]

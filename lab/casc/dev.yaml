@@ -1,0 +1,10 @@
+jobs:
+  - script: |
+      folder('team-a')
+      folder('legacy')
+
+      pipelineJob('team-a/app-backend') {
+        definition { cps { script("echo 'dev'"); sandbox() } }
+      }
+      freeStyleJob('legacy/app-backend')          // duplicado en el mismo Jenkins
+      multibranchPipelineJob('team-a/app-frontend')

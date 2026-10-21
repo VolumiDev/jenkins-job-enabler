@@ -1,0 +1,11 @@
+jobs:
+  - script: |
+      folder('prod')
+      folder('prod/team-a')
+      folder('frontend')
+
+      pipelineJob('prod/team-a/app-backend') {
+        disabled(true)
+        definition { cps { script("echo 'pro'"); sandbox() } }
+      }
+      multibranchPipelineJob('frontend/app-frontend')
